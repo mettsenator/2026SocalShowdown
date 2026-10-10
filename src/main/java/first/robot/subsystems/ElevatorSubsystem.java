@@ -45,7 +45,7 @@ public class ElevatorSubsystem extends SubsystemBase{
 
         .withClosedLoopController(kP, kI ,kD)
         .withSimClosedLoopController(kP, kI, kD)
-        .withTrapezoidalProfile(InchesPerSecond.of(26), InchesPerSecondPerSecond.of(0.5))
+        .withTrapezoidalProfile(InchesPerSecond.of(26), InchesPerSecondPerSecond.of(1))
 
         .withFeedforward(new ElevatorFeedforward(0,0,0))
         .withSimFeedforward(new ElevatorFeedforward(0,0,0))

@@ -22,6 +22,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import first.robot.generated.TunerConstants;
 import first.robot.subsystems.CommandSwerveDrivetrain;
 import first.robot.subsystems.ElevatorSubsystem;
+import first.robot.subsystems.IndexerSubsystem;
 import first.robot.subsystems.ShooterSubsystem;
 
 public class RobotContainer {
@@ -48,6 +49,7 @@ public class RobotContainer {
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
     private final ElevatorSubsystem elevator = new ElevatorSubsystem();
     private final ShooterSubsystem shooter = new ShooterSubsystem();
+    private final IndexerSubsystem indexer = new IndexerSubsystem();
 
     public RobotContainer() {
         configureBindings();
@@ -92,11 +94,14 @@ public class RobotContainer {
         operatorController.dpadDown().toggleOnTrue(elevator.set(-ELEVATOR_MANUAL_DUTY_CYCLE));
         operatorController.faceRight().toggleOnTrue(elevator.set(ELEVATOR_MANUAL_DUTY_CYCLE));
 
-        //// Hold the right bumper to run the shooter; releasing it commands zero RPM.
-        //operatorController.rightBumper().whileTrue(
-        //    shooter.run(RPM.of(SHOOTER_TARGET_RPM))
-        //        .finallyDo(() -> shooter.setSpeedSetpoint(RPM.of(0)))
-        //);
+        // Hold the right bumper to run the shooter; releasing it removes power and coasts.
+        operatorController.rightBumper().whileTrue(
+            shooter.run(RPM.of(SHOOTER_TARGET_RPM))
+                .finallyDo(shooter::coast)
+        );
+
+        // Hold the left bumper to run the indexer; releasing it stops the motor.
+        operatorController.leftBumper().whileTrue(indexer.run());
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }

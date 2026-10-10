@@ -33,7 +33,7 @@ public class ShooterSubsystem extends SubsystemBase {
   // ==================== CHANGE THESE SHOOTER VALUES ====================
   private static final int SHOOTER_CAN_ID = 18;
   private static final double SHOOTER_GEAR_REDUCTION = 1.0;
-  private static final boolean SHOOTER_MOTOR_INVERTED = false;
+  private static final boolean SHOOTER_MOTOR_INVERTED = true;
 
   private static final double SHOOTER_WHEEL_DIAMETER_INCHES = 6.0;
   private static final double SHOOTER_MOMENT_OF_INERTIA_KG_M2 = 2;
@@ -96,7 +96,8 @@ public class ShooterSubsystem extends SubsystemBase {
    * @return command that runs until interrupted
    */
   public Command run(AngularVelocity speed) {
-    return shooter.run(speed);
+    // Use the supplier overload so closed-loop control restarts after coasting.
+    return shooter.run(() -> speed);
   }
 
   /**
@@ -157,6 +158,12 @@ public class ShooterSubsystem extends SubsystemBase {
    */
   public Command setVoltage(Voltage volts) {
     return shooter.setVoltage(volts);
+  }
+
+  /** Stops applying motor power and allows the shooter wheel to coast naturally. */
+  public void coast() {
+    shooterSpark.stopClosedLoopController();
+    shooterSpark.setDutyCycle(0.0);
   }
 
   @Override
