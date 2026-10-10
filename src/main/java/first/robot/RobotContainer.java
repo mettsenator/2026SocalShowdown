@@ -8,6 +8,7 @@ import static org.wpilib.units.Units.*;
 
 import org.wpilib.command2.Command;
 import org.wpilib.command2.Commands;
+import org.wpilib.command2.button.CommandGamepad;
 import org.wpilib.command2.button.CommandXboxController;
 import org.wpilib.command2.button.RobotModeTriggers;
 import org.wpilib.command2.sysid.SysIdRoutine.Direction;
@@ -20,8 +21,13 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import first.robot.generated.TunerConstants;
 import first.robot.subsystems.CommandSwerveDrivetrain;
+import first.robot.subsystems.ElevatorSubsystem;
+import first.robot.subsystems.ShooterSubsystem;
 
 public class RobotContainer {
+    private static final double ELEVATOR_MANUAL_DUTY_CYCLE = 0.3;
+    private static final double SHOOTER_TARGET_RPM = 3000.0; // TODO: Set the desired shooter speed.
+
     private double MaxSpeed = 1.0 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
     private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
@@ -37,8 +43,11 @@ public class RobotContainer {
     private final SwerveTelemetry logger = new SwerveTelemetry(MaxSpeed);
 
     private final CommandXboxController joystick = new CommandXboxController(0);
+    private final CommandGamepad operatorController = new CommandGamepad(1);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    private final ElevatorSubsystem elevator = new ElevatorSubsystem();
+    private final ShooterSubsystem shooter = new ShooterSubsystem();
 
     public RobotContainer() {
         configureBindings();
@@ -77,6 +86,17 @@ public class RobotContainer {
 
         // Reset the field-centric heading on left bumper press.
         joystick.leftBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+
+        // Press once to run the elevator; press the same control again to stop it.
+        operatorController.dpadUp().toggleOnTrue(elevator.set(ELEVATOR_MANUAL_DUTY_CYCLE));
+        operatorController.dpadDown().toggleOnTrue(elevator.set(-ELEVATOR_MANUAL_DUTY_CYCLE));
+        operatorController.faceRight().toggleOnTrue(elevator.set(ELEVATOR_MANUAL_DUTY_CYCLE));
+
+        //// Hold the right bumper to run the shooter; releasing it commands zero RPM.
+        //operatorController.rightBumper().whileTrue(
+        //    shooter.run(RPM.of(SHOOTER_TARGET_RPM))
+        //        .finallyDo(() -> shooter.setSpeedSetpoint(RPM.of(0)))
+        //);
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }
