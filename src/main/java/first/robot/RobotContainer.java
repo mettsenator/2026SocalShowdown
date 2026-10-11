@@ -23,6 +23,7 @@ import first.robot.generated.TunerConstants;
 import first.robot.subsystems.CommandSwerveDrivetrain;
 import first.robot.subsystems.ElevatorSubsystem;
 import first.robot.subsystems.IndexerSubsystem;
+import first.robot.subsystems.LimelightSubsystem;
 import first.robot.subsystems.ShooterSubsystem;
 
 public class RobotContainer {
@@ -50,6 +51,7 @@ public class RobotContainer {
     private final ElevatorSubsystem elevator = new ElevatorSubsystem();
     private final ShooterSubsystem shooter = new ShooterSubsystem();
     private final IndexerSubsystem indexer = new IndexerSubsystem();
+    private final LimelightSubsystem limelight = new LimelightSubsystem(drivetrain);
 
     public RobotContainer() {
         configureBindings();
@@ -102,6 +104,9 @@ public class RobotContainer {
 
         // Hold the left bumper to run the indexer; releasing it stops the motor.
         operatorController.leftBumper().whileTrue(indexer.run());
+
+        // Press face-up to replace odometry with the next accepted Limelight pose.
+        operatorController.faceUp().onTrue(limelight.runOnce(limelight::requestPoseReset));
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }
