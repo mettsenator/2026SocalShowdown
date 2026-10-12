@@ -9,17 +9,19 @@ import static org.wpilib.units.Units.*;
 import com.revrobotics.spark.SparkFlex;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 
-import org.wpilib.command2.Command;
-import org.wpilib.command2.SubsystemBase;
-import org.wpilib.command2.button.Trigger;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.command3.Scheduler;
+import org.wpilib.command3.Trigger;
+import org.wpilib.framework.RobotBase;
 import org.wpilib.hardware.bus.CANPort;
 import org.wpilib.math.controller.SimpleMotorFeedforward;
 import org.wpilib.math.system.DCMotor;
 import org.wpilib.units.measure.AngularVelocity;
 import org.wpilib.units.measure.Voltage;
 
-import yams.commands2.config.SmartMotorControllerConfig;
-import yams.commands2.mechanisms.FlyWheel;
+import yams.commands3.config.SmartMotorControllerConfig;
+import yams.commands3.mechanisms.FlyWheel;
 import yams.core.gearing.GearBox;
 import yams.core.gearing.MechanismGearing;
 import yams.core.mechanisms.config.FlyWheelConfig;
@@ -29,7 +31,7 @@ import yams.core.motorcontrollers.enums.MotorMode;
 import yams.core.motorcontrollers.local.SparkWrapper;
 import yams.core.telemetry.enums.TelemetryVerbosity;
 
-public class ShooterSubsystem extends SubsystemBase {
+public class ShooterSubsystem implements Mechanism {
   // ==================== CHANGE THESE SHOOTER VALUES ====================
   private static final int SHOOTER_CAN_ID = 18;
   private static final double SHOOTER_GEAR_REDUCTION = 1.0;
@@ -87,7 +89,12 @@ public class ShooterSubsystem extends SubsystemBase {
 
   private final FlyWheel shooter = new FlyWheel(shooterConfig, shooterSpark);
 
-  public ShooterSubsystem() {}
+  public ShooterSubsystem() {
+    Scheduler.getDefault().addPeriodic(this::periodic);
+    if (RobotBase.isSimulation()) {
+      Scheduler.getDefault().addPeriodic(this::simulationPeriodic);
+    }
+  }
 
   /**
    * Runs the shooter continuously at the requested angular velocity.
@@ -96,8 +103,16 @@ public class ShooterSubsystem extends SubsystemBase {
    * @return command that runs until interrupted
    */
   public Command run(AngularVelocity speed) {
-    // Use the supplier overload so closed-loop control restarts after coasting.
-    return shooter.run(() -> speed);
+    return run(
+            coroutine -> {
+              shooterSpark.startClosedLoopController();
+              while (true) {
+                shooterSpark.setVelocity(speed);
+                coroutine.yield();
+              }
+            })
+        .whenCanceled(this::coast)
+        .named("Run Shooter");
   }
 
   /**
@@ -166,12 +181,10 @@ public class ShooterSubsystem extends SubsystemBase {
     shooterSpark.setDutyCycle(0.0);
   }
 
-  @Override
   public void periodic() {
     shooter.updateTelemetry();
   }
 
-  @Override
   public void simulationPeriodic() {
     shooter.simIterate();
   }

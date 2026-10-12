@@ -6,12 +6,10 @@ package first.robot;
 
 import static org.wpilib.units.Units.*;
 
-import org.wpilib.command2.Command;
-import org.wpilib.command2.Commands;
-import org.wpilib.command2.button.CommandGamepad;
-import org.wpilib.command2.button.CommandXboxController;
-import org.wpilib.command2.button.RobotModeTriggers;
-import org.wpilib.command2.sysid.SysIdRoutine.Direction;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.button.CommandGamepad;
+import org.wpilib.command3.button.CommandXboxController;
+import org.wpilib.command3.button.RobotModeTriggers;
 import org.wpilib.math.geometry.Rotation2d;
 import org.wpilib.math.kinematics.ChassisVelocities;
 
@@ -21,6 +19,7 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import first.robot.generated.TunerConstants;
 import first.robot.subsystems.CommandSwerveDrivetrain;
+import first.robot.subsystems.CommandSwerveDrivetrain.SysIdDirection;
 import first.robot.subsystems.ElevatorSubsystem;
 import first.robot.subsystems.IndexerSubsystem;
 import first.robot.subsystems.LimelightSubsystem;
@@ -73,7 +72,7 @@ public class RobotContainer {
         // neutral mode is applied to the drive motors while disabled.
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
-            drivetrain.applyRequest(() -> idle).ignoringDisable(true)
+            drivetrain.applyRequest(() -> idle)
         );
 
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
@@ -83,13 +82,15 @@ public class RobotContainer {
 
         // Run SysId routines when holding back (view)/start (menu) and X/Y.
         // Note that each routine should be run exactly once in a single log.
-        joystick.view().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.FORWARD));
-        joystick.view().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.REVERSE));
-        joystick.menu().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.FORWARD));
-        joystick.menu().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.REVERSE));
+        joystick.view().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(SysIdDirection.FORWARD));
+        joystick.view().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(SysIdDirection.REVERSE));
+        joystick.menu().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(SysIdDirection.FORWARD));
+        joystick.menu().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(SysIdDirection.REVERSE));
 
         // Reset the field-centric heading on left bumper press.
-        joystick.leftBumper().onTrue(drivetrain.runOnce(drivetrain::seedFieldCentric));
+        joystick.leftBumper().onTrue(
+            drivetrain.run(coroutine -> drivetrain.seedFieldCentric()).named("Seed Field Centric")
+        );
 
         // Press once to run the elevator; press the same control again to stop it.
         operatorController.dpadUp().toggleOnTrue(elevator.set(ELEVATOR_MANUAL_DUTY_CYCLE));
@@ -99,14 +100,15 @@ public class RobotContainer {
         // Hold the right bumper to run the shooter; releasing it removes power and coasts.
         operatorController.rightBumper().whileTrue(
             shooter.run(RPM.of(SHOOTER_TARGET_RPM))
-                .finallyDo(shooter::coast)
         );
 
         // Hold the left bumper to run the indexer; releasing it stops the motor.
         operatorController.leftBumper().whileTrue(indexer.run());
 
         // Press face-up to replace odometry with the next accepted Limelight pose.
-        operatorController.faceUp().onTrue(limelight.runOnce(limelight::requestPoseReset));
+        operatorController.faceUp().onTrue(
+            limelight.run(coroutine -> limelight.requestPoseReset()).named("Request Vision Pose Reset")
+        );
 
         drivetrain.registerTelemetry(logger::telemeterize);
     }
@@ -114,19 +116,20 @@ public class RobotContainer {
     public Command getAutonomousCommand() {
         // Simple drive forward auton
         final var idle = new SwerveRequest.Idle();
-        return Commands.sequence(
+        return Command.sequence(
             // Reset our field centric heading to match the robot
             // facing away from our alliance station wall (0 deg).
-            drivetrain.runOnce(() -> drivetrain.seedFieldCentric(Rotation2d.ZERO)),
+            drivetrain.run(coroutine -> drivetrain.seedFieldCentric(Rotation2d.ZERO))
+                .named("Seed Autonomous Heading"),
             // Then slowly drive forward (away from us) for 2 seconds.
             drivetrain.applyRequest(() ->
                 autoDrive.withVelocity(
                     new ChassisVelocities(1.0, 0.0, 0.0)
                 )
             )
-            .withTimeout(2.0),
+            .withTimeout(Seconds.of(2)),
             // Finally idle for the rest of auton
             drivetrain.applyRequest(() -> idle)
-        );
+        ).named("Simple Drive Forward Autonomous");
     }
 }

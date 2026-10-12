@@ -4,8 +4,8 @@
 
 package first.robot;
 
-import org.wpilib.command2.Command;
-import org.wpilib.command2.CommandScheduler;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.Scheduler;
 import org.wpilib.framework.TimedRobot;
 
 import com.ctre.phoenix6.HootAutoReplay;
@@ -31,7 +31,7 @@ public class Robot extends TimedRobot {
 
     @Override
     public void robotPeriodic() {
-        CommandScheduler.getInstance().run();
+        Scheduler.getDefault().run();
     }
 
     @Override
@@ -48,7 +48,7 @@ public class Robot extends TimedRobot {
         autonomousCommand = container.getAutonomousCommand();
 
         if (autonomousCommand != null) {
-            CommandScheduler.getInstance().schedule(autonomousCommand);
+            Scheduler.getDefault().schedule(autonomousCommand);
         }
     }
 
@@ -61,7 +61,7 @@ public class Robot extends TimedRobot {
     @Override
     public void teleopInit() {
         if (autonomousCommand != null) {
-            CommandScheduler.getInstance().cancel(autonomousCommand);
+            Scheduler.getDefault().cancel(autonomousCommand);
         }
     }
 
@@ -73,7 +73,7 @@ public class Robot extends TimedRobot {
 
     @Override
     public void utilityInit() {
-        CommandScheduler.getInstance().cancelAll();
+        Scheduler.getDefault().cancelAll();
     }
 
     @Override

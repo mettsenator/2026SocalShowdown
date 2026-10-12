@@ -11,12 +11,11 @@ import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
-import org.wpilib.command2.Command;
-import org.wpilib.command2.Commands;
-import org.wpilib.command2.SubsystemBase;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.Mechanism;
 import org.wpilib.hardware.bus.CANPort;
 
-public class IndexerSubsystem extends SubsystemBase {
+public class IndexerSubsystem implements Mechanism {
   // ==================== CHANGE THESE INDEXER VALUES ====================
   private static final int INDEXER_MOTOR_1_CAN_ID = 17;
   private static final int INDEXER_MOTOR_2_CAN_ID = 20;
@@ -50,7 +49,13 @@ public class IndexerSubsystem extends SubsystemBase {
 
   /** Runs both indexer motors while scheduled and stops them when interrupted. */
   public Command run() {
-    return Commands.startEnd(this::start, this::stop, this);
+    return run(
+            coroutine -> {
+              start();
+              coroutine.park();
+            })
+        .whenCanceled(this::stop)
+        .named("Run Indexer");
   }
 
   private void start() {

@@ -6,7 +6,8 @@ package first.robot.subsystems;
 
 import com.ctre.phoenix6.Utils;
 
-import org.wpilib.command2.SubsystemBase;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.command3.Scheduler;
 import org.wpilib.driverstation.RobotState;
 import org.wpilib.math.geometry.Pose2d;
 import org.wpilib.math.geometry.Rotation2d;
@@ -19,7 +20,7 @@ import org.wpilib.networktables.NetworkTablesJNI;
 import org.wpilib.networktables.StructPublisher;
 import org.wpilib.networktables.TimestampedDoubleArray;
 
-public class LimelightSubsystem extends SubsystemBase {
+public class LimelightSubsystem implements Mechanism {
   // ==================== CHANGE THESE VISION VALUES ====================
   private static final String LIMELIGHT_NAME = "limelight";
 
@@ -79,6 +80,8 @@ public class LimelightSubsystem extends SubsystemBase {
         networkTables.getStructTopic(LIMELIGHT_POSE_OUTPUT_TOPIC, Pose2d.struct).publish();
     visionAcceptedPublisher =
         networkTables.getBooleanTopic(VISION_ACCEPTED_TOPIC).publish();
+
+    Scheduler.getDefault().addPeriodic(this::periodic);
   }
 
   /** Causes the next accepted Limelight pose to replace the drivetrain's estimated pose. */
@@ -86,7 +89,6 @@ public class LimelightSubsystem extends SubsystemBase {
     poseResetPending = true;
   }
 
-  @Override
   public void periodic() {
     var drivetrainState = drivetrain.getStateCopy();
     Pose2d currentPose = drivetrainState.Pose;

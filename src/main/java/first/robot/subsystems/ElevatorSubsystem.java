@@ -13,12 +13,14 @@ import org.wpilib.math.controller.ElevatorFeedforward;
 import org.wpilib.math.system.DCMotor;
 import org.wpilib.units.measure.Distance;
 import org.wpilib.units.measure.Voltage;
-import org.wpilib.command2.Command;
-import org.wpilib.command2.SubsystemBase;
+import org.wpilib.command3.Command;
+import org.wpilib.command3.Mechanism;
+import org.wpilib.command3.Scheduler;
+import org.wpilib.framework.RobotBase;
 import org.wpilib.hardware.bus.CANPort;
 
-import yams.commands2.config.SmartMotorControllerConfig;
-import yams.commands2.mechanisms.Elevator;
+import yams.commands3.config.SmartMotorControllerConfig;
+import yams.commands3.mechanisms.Elevator;
 import yams.core.gearing.GearBox;
 import yams.core.gearing.MechanismGearing;
 import yams.core.mechanisms.config.ElevatorConfig;
@@ -29,7 +31,7 @@ import yams.core.motorcontrollers.local.SparkWrapper;
 import yams.core.telemetry.enums.TelemetryVerbosity;
 
 
-public class ElevatorSubsystem extends SubsystemBase{
+public class ElevatorSubsystem implements Mechanism {
     private static final Distance MIN_HEIGHT = Inches.of(0);
     private static final Distance MAX_HEIGHT = Inches.of(10);
 
@@ -102,13 +104,18 @@ public class ElevatorSubsystem extends SubsystemBase{
   public Command set(double dutycycle) { return elevator.set(dutycycle);}
 
   /**
-   * Set the voltage of the elevator, useful for feeding a WPILib {@link org.wpilib.command2.sysid.SysIdRoutine}.
+   * Set the voltage of the elevator, useful for mechanism characterization.
    * @param volts Voltage to apply.
    */
   public Command setVoltage(Voltage volts) { return elevator.setVoltage(volts);}
 
 
-    public ElevatorSubsystem() {}
+    public ElevatorSubsystem() {
+      Scheduler.getDefault().addPeriodic(this::periodic);
+      if (RobotBase.isSimulation()) {
+        Scheduler.getDefault().addPeriodic(this::simulationPeriodic);
+      }
+    }
 
   /**
    * Example command factory method.
@@ -116,12 +123,10 @@ public class ElevatorSubsystem extends SubsystemBase{
    * @return a command
    */
   public Command exampleMethodCommand() {
-    // Inline construction of command goes here.
-    // Subsystem::RunOnce implicitly requires `this` subsystem.
-    return runOnce(
-        () -> {
+    return run(
+        coroutine -> {
           /* one-time action goes here */
-        });
+        }).named("Elevator Example");
   }
 
   /**
@@ -134,13 +139,11 @@ public class ElevatorSubsystem extends SubsystemBase{
     return false;
   }
 
-  @Override
   public void periodic() {
     // This method will be called once per scheduler run
     elevator.updateTelemetry();
   }
 
-  @Override
   public void simulationPeriodic() {
     // This method will be called once per scheduler run during simulation
     elevator.simIterate();
